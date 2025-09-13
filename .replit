@@ -5,3 +5,36 @@ integrations = ["python_openai:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
+packages = ["ffmpeg-full", "glibcLocales"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Gradio App"
+
+[[workflows.workflow]]
+name = "Gradio App"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 44595
+externalPort = 3000

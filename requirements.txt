@@ -3,3 +3,7 @@ pandas
 openpyxl
 openai
 python-dotenv
+gradio
+openpyxl
+pandas
+python-dotenv
