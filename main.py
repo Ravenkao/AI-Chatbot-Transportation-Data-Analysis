@@ -548,7 +548,39 @@ def create_interface():
                 interactive=False
             )
         
-        # Example questions
+        with gr.Row():
+            # Question input
+            question_input = gr.Textbox(
+                label="Ask ANY question about the transportation data",
+                placeholder="e.g., How many trips had more than 8 passengers? What's the busiest pickup location? Show me weekend patterns",
+                lines=2
+            )
+            
+            # Submit button
+            submit_btn = gr.Button("Analyze", variant="primary")
+        
+        # Answer output
+        answer_output = gr.Textbox(
+            label="Analysis Results",
+            interactive=False,
+            lines=15
+        )
+        
+        # Event handlers
+        submit_btn.click(
+            fn=answer_question,
+            inputs=[question_input, gr.State(None)],
+            outputs=[answer_output]
+        )
+        
+        # Also allow Enter key to submit
+        question_input.submit(
+            fn=answer_question,
+            inputs=[question_input, gr.State(None)],
+            outputs=[answer_output]
+        )
+        
+        # Example questions at the bottom
         gr.Markdown("### Example Questions You Can Ask:")
         gr.Markdown("""
         **Count & Numbers:**
@@ -582,38 +614,6 @@ def create_interface():
         - "Show me weekend evening trips"
         - "Compare weekday vs weekend usage"
         """)
-        
-        with gr.Row():
-            # Question input
-            question_input = gr.Textbox(
-                label="Ask ANY question about the transportation data",
-                placeholder="e.g., How many trips had more than 8 passengers? What's the busiest pickup location? Show me weekend patterns",
-                lines=2
-            )
-            
-            # Submit button
-            submit_btn = gr.Button("Analyze", variant="primary")
-        
-        # Answer output
-        answer_output = gr.Textbox(
-            label="Analysis Results",
-            interactive=False,
-            lines=15
-        )
-        
-        # Event handlers
-        submit_btn.click(
-            fn=answer_question,
-            inputs=[question_input, gr.State(None)],
-            outputs=[answer_output]
-        )
-        
-        # Also allow Enter key to submit
-        question_input.submit(
-            fn=answer_question,
-            inputs=[question_input, gr.State(None)],
-            outputs=[answer_output]
-        )
     
     return interface
 
