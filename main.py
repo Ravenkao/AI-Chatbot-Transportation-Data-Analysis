@@ -64,7 +64,7 @@ def load_transportation_data():
     try:
         transportation_df = pd.read_excel("sample_transportation_data.xlsx", engine='openpyxl')
         transportation_df['Trip Date and Time'] = pd.to_datetime(transportation_df['Trip Date and Time'])
-        return transportation_df, f"Transportation dataset loaded: {FAKE_TOTAL_TRIPS} trips, {FAKE_TOTAL_COLUMNS} columns"
+        return transportation_df, f"Example - Transportation dataset loaded: {FAKE_TOTAL_TRIPS} trips, {FAKE_TOTAL_COLUMNS} columns"
     except Exception as e:
         return None, f"Error loading transportation dataset: {e}"
 
