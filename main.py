@@ -81,14 +81,14 @@ def get_openai_client():
 def load_user_dataset(file, session_state):
     """Load the Excel dataset from uploaded file"""
     if file is None:
-        return session_state, "No file uploaded. Using sample dataset.", None
+        return session_state, "No file uploaded. Using sample dataset."
     
     try:
         user_df = pd.read_excel(file, engine='openpyxl')
         
         # Validate that we have some basic columns for analysis
         if user_df.empty:
-            return session_state, "Uploaded file is empty. Using sample dataset.", None
+            return session_state, "Uploaded file is empty. Using sample dataset."
         
         # Try to identify datetime columns
         datetime_cols = []
@@ -111,11 +111,11 @@ def load_user_dataset(file, session_state):
         
         status = f"✅ User dataset loaded successfully!\n📊 Shape: {user_df.shape[0]} rows, {user_df.shape[1]} columns\n📅 Datetime columns detected: {len(datetime_cols)}\n🗂️ Columns: {', '.join(user_df.columns[:5])}{'...' if len(user_df.columns) > 5 else ''}"
         
-        return new_session_state, status, user_df.head(10)
+        return new_session_state, status
         
     except Exception as e:
         status = f"Error loading file: {str(e)}\nUsing sample dataset instead."
-        return session_state, status, None
+        return session_state, status
 
 def get_current_dataset(session_state):
     """Get the currently active dataset"""
@@ -134,11 +134,7 @@ def switch_to_sample_dataset(session_state):
     new_session_state = session_state.copy() if session_state else {}
     new_session_state['current_dataset_type'] = 'sample'
     
-    # Get sample dataset preview if available
-    transportation_df = new_session_state.get('transportation_df')
-    preview = transportation_df.head(10) if transportation_df is not None else None
-    
-    return new_session_state, "Switched to sample transportation dataset.", preview
+    return new_session_state, "Switched to sample transportation dataset."
 
 def analyze_user_data_query(question, df, dataset_type):
     """Analyze user uploaded data with real results"""
@@ -809,12 +805,11 @@ def create_interface():
                 'user_df': None,
                 'current_dataset_type': 'sample'
             }
-            preview_data = transportation_df.head(10) if transportation_df is not None else None
-            return initial_state, load_status, preview_data
+            return initial_state, load_status
         
         # File upload section
         with gr.Row():
-            with gr.Column(scale=3):
+            with gr.Column(scale=2):
                 file_upload = gr.File(
                     label="📁 Upload Your Excel Dataset (.xlsx, .xls)",
                     file_types=[".xlsx", ".xls"],
@@ -823,19 +818,13 @@ def create_interface():
             with gr.Column(scale=1):
                 sample_btn = gr.Button("Use Sample Data", variant="secondary")
         
-        # Dataset info and preview
+        # Dataset info
         with gr.Row():
-            with gr.Column(scale=1):
-                dataset_info = gr.Textbox(
-                    label="Dataset Status",
-                    interactive=False,
-                    lines=4
-                )
-            with gr.Column(scale=2):
-                data_preview = gr.DataFrame(
-                    label="Data Preview (First 10 rows)",
-                    interactive=False
-                )
+            dataset_info = gr.Textbox(
+                label="Dataset Status",
+                interactive=False,
+                lines=3
+            )
         
         with gr.Row():
             # Question input
@@ -857,12 +846,12 @@ def create_interface():
         
         # Event handlers
         def handle_file_upload(file, current_session_state):
-            new_session_state, status, preview = load_user_dataset(file, current_session_state)
-            return new_session_state, status, preview
+            new_session_state, status = load_user_dataset(file, current_session_state)
+            return new_session_state, status
         
         def handle_sample_switch(current_session_state):
-            new_session_state, status, preview = switch_to_sample_dataset(current_session_state)
-            return new_session_state, status, preview
+            new_session_state, status = switch_to_sample_dataset(current_session_state)
+            return new_session_state, status
         
         def handle_question(question, current_session_state):
             if not question.strip():
@@ -873,19 +862,19 @@ def create_interface():
         interface.load(
             fn=initialize_session,
             inputs=[],
-            outputs=[session_state, dataset_info, data_preview]
+            outputs=[session_state, dataset_info]
         )
         
         file_upload.change(
             fn=handle_file_upload,
             inputs=[file_upload, session_state],
-            outputs=[session_state, dataset_info, data_preview]
+            outputs=[session_state, dataset_info]
         )
         
         sample_btn.click(
             fn=handle_sample_switch,
             inputs=[session_state],
-            outputs=[session_state, dataset_info, data_preview]
+            outputs=[session_state, dataset_info]
         )
         
         submit_btn.click(
