@@ -17,10 +17,10 @@ openai_client = None
 transportation_df = None
 
 def load_transportation_data():
-    """Load the FetiiAI Austin transportation dataset"""
+    """Load the sample transportation dataset"""
     global transportation_df
     try:
-        transportation_df = pd.read_excel("FetiiAI_Data_Austin.xlsx", engine='openpyxl')
+        transportation_df = pd.read_excel("sample_transportation_data.xlsx", engine='openpyxl')
         transportation_df['Trip Date and Time'] = pd.to_datetime(transportation_df['Trip Date and Time'])
         return f"Transportation dataset loaded: {transportation_df.shape[0]} trips, {transportation_df.shape[1]} columns"
     except Exception as e:
@@ -180,7 +180,7 @@ def apply_question_filters(df, question_lower):
         filtered_df = filtered_df[filtered_df['Total Passengers'] == count]
     
     # Location filters
-    downtown_keywords = ['downtown', '6th st', 'congress ave', 'warehouse district', 'rainey st', 'east 6th']
+    downtown_keywords = ['downtown', 'city center', 'main st', 'central district', 'business district', 'entertainment district']
     if any(keyword in question_lower for keyword in downtown_keywords):
         pattern = '|'.join(downtown_keywords)
         filtered_df = filtered_df[
@@ -189,10 +189,10 @@ def apply_question_filters(df, question_lower):
         ]
     
     # Specific location mentions
-    if "moody center" in question_lower:
+    if "event center" in question_lower or "convention center" in question_lower:
         filtered_df = filtered_df[
-            (filtered_df['Drop Off Address'].str.contains('Moody', case=False, na=False)) |
-            (filtered_df['Pick Up Address'].str.contains('Moody', case=False, na=False))
+            (filtered_df['Drop Off Address'].str.contains('Center|Convention|Event', case=False, na=False)) |
+            (filtered_df['Pick Up Address'].str.contains('Center|Convention|Event', case=False, na=False))
         ]
     
     if "airport" in question_lower:
@@ -457,7 +457,7 @@ def answer_question_with_ai(question):
         # Prepare comprehensive dataset context for OpenAI
         sample_data = transportation_df.head(3)[['Trip Date and Time', 'Pick Up Address', 'Drop Off Address', 'Total Passengers']]
         
-        dataset_summary = f"""Austin Transportation Dataset Context:
+        dataset_summary = f"""Transportation Dataset Context:
 - Total trips: {transportation_df.shape[0]:,}
 - Date range: {transportation_df['Trip Date and Time'].min().strftime('%Y-%m-%d')} to {transportation_df['Trip Date and Time'].max().strftime('%Y-%m-%d')}
 - Passenger counts: {transportation_df['Total Passengers'].min()} to {transportation_df['Total Passengers'].max()} (avg: {transportation_df['Total Passengers'].mean():.1f})
@@ -533,9 +533,9 @@ def answer_question(question, dataset_state):
 def create_interface():
     """Create the Gradio interface"""
     
-    with gr.Blocks(title="Austin Transportation Data Analysis") as interface:
-        gr.Markdown("# 🚗 Austin Transportation Data Analysis")
-        gr.Markdown("**Ask ANY question about the Austin transportation dataset!** The AI can analyze trips, passengers, locations, timing patterns, and much more.")
+    with gr.Blocks(title="Transportation Data Analysis") as interface:
+        gr.Markdown("# 🚗 Transportation Data Analysis")
+        gr.Markdown("**Ask ANY question about the transportation dataset!** The AI can analyze trips, passengers, locations, timing patterns, and much more.")
         
         # Load transportation data on startup
         load_status = load_transportation_data()
@@ -606,7 +606,7 @@ def create_interface():
         
         **Locations:**
         - "Where do most people get picked up?"
-        - "Show me downtown trips"
+        - "Show me city center trips"
         - "How many trips went to the airport?"
         
         **Complex Questions:**

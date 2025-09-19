@@ -1,6 +1,6 @@
 # Overview
 
-This is a data analysis chatbot application built with Gradio that allows users to upload Excel files and ask natural language questions about their data. The application leverages OpenAI's API to provide intelligent responses about dataset contents, making data exploration accessible through conversational interaction.
+This is a data analysis chatbot application built with Gradio that allows users to upload Excel files and ask natural language questions about their data. The application leverages OpenAI's API to provide intelligent responses about dataset contents, making data exploration accessible through conversational interaction. This is a sample project demonstrating data analysis capabilities with transportation data.
 
 # User Preferences
 
