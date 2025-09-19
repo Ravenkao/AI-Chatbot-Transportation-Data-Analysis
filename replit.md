@@ -1,6 +1,6 @@
 # Overview
 
-This is a data analysis chatbot application built with Gradio that allows users to upload Excel files and ask natural language questions about their data. The application leverages OpenAI's API to provide intelligent responses about dataset contents, making data exploration accessible through conversational interaction. This is a sample project demonstrating data analysis capabilities with transportation data.
+This is a data analysis chatbot application built with Gradio that allows users to upload Excel files and ask natural language questions about their data. The application supports both user-uploaded datasets (with real analysis results) and a built-in sample transportation dataset (with anonymized fake numbers for privacy). It leverages OpenAI's API to provide AI-enhanced insights for user data, making data exploration accessible through conversational interaction.
 
 # User Preferences
 
@@ -10,19 +10,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Frontend Architecture
 - **Gradio Web Interface**: Provides a simple, interactive web UI for file uploads and chat-based interactions
-- **File Upload Component**: Handles Excel file uploads with validation and error handling
-- **Chat Interface**: Enables natural language questioning about uploaded datasets
+- **File Upload Component**: Handles Excel file uploads (.xlsx, .xls) with validation, error handling, and real-time status feedback
+- **Data Preview Component**: Displays uploaded dataset preview with column information and structure
+- **Dataset Switching**: Allows users to toggle between their uploaded data and sample transportation data
+- **Chat Interface**: Enables natural language questioning about any loaded dataset with real-time analysis
 
 ## Backend Architecture
 - **Python Application**: Single-file application structure using main.py as the entry point
+- **Session-Based State Management**: Uses Gradio State for per-session data isolation, preventing data leakage between users
+- **Dual Analysis Engine**: Provides real analysis for user data and anonymized fake results for sample data privacy
 - **Lazy Initialization Pattern**: OpenAI client is initialized only when needed to optimize resource usage
-- **State Management**: Dataset state is maintained in memory during the session
-- **Error Handling**: Comprehensive error handling for file operations and API calls
+- **Comprehensive Error Handling**: Robust error handling for file operations, data processing, and API calls
 
 ## Data Processing
-- **Pandas Integration**: Uses pandas for Excel file parsing and data manipulation
-- **OpenPyXL Engine**: Specifically configured for robust Excel file reading
-- **In-Memory Storage**: Dataset is stored in memory as pandas DataFrame during session
+- **Pandas Integration**: Uses pandas for Excel file parsing and data manipulation with automatic data type detection
+- **OpenPyXL Engine**: Specifically configured for robust Excel file reading (.xlsx and .xls formats)
+- **Session-Isolated Storage**: Each user's dataset is stored separately in session state to prevent cross-user data exposure
+- **Smart Column Detection**: Automatically identifies numeric, datetime, and text columns for appropriate analysis
+- **Privacy Protection**: Sample dataset analysis uses anonymized fake numbers while user data receives real analysis results
 
 ## AI Integration
 - **OpenAI API**: Integrates with OpenAI's language models for natural language understanding and response generation
