@@ -1,6 +1,6 @@
 # 🤖 AI Chatbot for Data Analysis
 
-[![Try with Replit](https://replit.com/badge?caption=Try%20AI%20Chatbot)](https://c331919b-0947-46ea-9b02-75c3cf7867bf-00-2pu2p402fq5y1.riker.replit.dev/)
+[![Try with Replit](https://replit.com/badge?caption=Try%20AI%20Chatbot)](https://python-pilot-AI-Chatbot-Transportation-Data-Analysis.replit.app)
 
 An intelligent data analysis chatbot built with Gradio that allows users to upload Excel files and ask natural language questions about their data. Get instant insights through conversational AI!
 
@@ -132,4 +132,4 @@ Feel free to fork this project and submit pull requests! Areas for improvement:
 
 ---
 
-**Ready to analyze your data?** 👆 **[Click here to try the AI Chatbot now!](https://c331919b-0947-46ea-9b02-75c3cf7867bf-00-2pu2p402fq5y1.riker.replit.dev/)**
+**Ready to analyze your data?** 👆 **[Click here to try the AI Chatbot now!](https://python-pilot-AI-Chatbot-Transportation-Data-Analysis.replit.app)**
