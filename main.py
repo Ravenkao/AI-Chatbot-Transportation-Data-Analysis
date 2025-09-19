@@ -514,7 +514,13 @@ Focus on practical insights that would be valuable for ride-sharing operations, 
         return f"{basic_analysis}\n\n=== 🤖 AI Business Intelligence ===\n{ai_response}"
         
     except Exception as e:
-        return f"{basic_analysis}\n\n[AI enhancement unavailable: {str(e)}]"
+        error_message = str(e)
+        if "insufficient_quota" in error_message or "429" in error_message:
+            return f"{basic_analysis}\n\n💡 **OpenAI Quota Exceeded**: You've reached your API usage limit. The analysis above uses our built-in algorithms and provides comprehensive insights without AI enhancement. To get AI-powered insights, you can:\n• Add credits to your OpenAI account at https://platform.openai.com/billing\n• Upgrade your OpenAI plan for higher limits\n• The app works perfectly without OpenAI - all core analysis features are available!"
+        elif "does not exist" in error_message or "not found" in error_message:
+            return f"{basic_analysis}\n\n💡 **OpenAI Model Access**: Your API key doesn't have access to advanced models. The analysis above provides comprehensive insights using our built-in algorithms. For AI enhancement, consider upgrading your OpenAI plan."
+        else:
+            return f"{basic_analysis}\n\n[AI enhancement temporarily unavailable: {error_message}]"
 
 def answer_question(question, dataset_state):
     """Main question answering function"""
