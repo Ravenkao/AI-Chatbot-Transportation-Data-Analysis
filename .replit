@@ -8,7 +8,6 @@ channel = "stable-25_05"
 packages = ["ffmpeg-full", "glibcLocales"]
 
 [workflows]
-runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -34,7 +33,3 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 42483
-externalPort = 3000
