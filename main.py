@@ -599,4 +599,5 @@ def create_interface():
 if __name__ == "__main__":
     # Create and launch the Gradio app
     app = create_interface()
-    app.launch(server_name="0.0.0.0", server_port=5000)
+    port = int(os.getenv("PORT", 5000))
+    app.launch(server_name="0.0.0.0", server_port=port)
