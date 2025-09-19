@@ -1,7 +1,7 @@
 [project]
-name = "repl-nix-workspace"
+name = "ai-chatbot-transportation-analysis"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI Chatbot for Transportation Data Analysis - Ask questions about transportation data in natural language"
 requires-python = ">=3.11"
 dependencies = [
     "openai>=1.107.2",

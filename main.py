@@ -533,8 +533,8 @@ def answer_question(question, dataset_state):
 def create_interface():
     """Create the Gradio interface"""
     
-    with gr.Blocks(title="Transportation Data Analysis") as interface:
-        gr.Markdown("# 🚗 Transportation Data Analysis")
+    with gr.Blocks(title="AI Chatbot - Transportation Data Analysis") as interface:
+        gr.Markdown("# 🤖 AI Chatbot - Transportation Data Analysis")
         gr.Markdown("**Ask ANY question about the transportation dataset!** The AI can analyze trips, passengers, locations, timing patterns, and much more.")
         
         # Load transportation data on startup
