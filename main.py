@@ -485,15 +485,30 @@ Provide:
 
 Focus on practical insights that would be valuable for ride-sharing operations, city planning, or user experience optimization."""
         
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a senior transportation data analyst with expertise in ride-sharing operations, demand forecasting, and urban mobility patterns. Provide actionable insights and strategic recommendations based on transportation data."},
-                {"role": "user", "content": enhanced_prompt}
-            ],
-            max_tokens=600,
-            temperature=0.3
-        )
+        # Try models in order of preference, falling back to free tier if needed
+        models_to_try = ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"]
+        
+        response = None
+        for model in models_to_try:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "You are a senior transportation data analyst with expertise in ride-sharing operations, demand forecasting, and urban mobility patterns. Provide actionable insights and strategic recommendations based on transportation data."},
+                        {"role": "user", "content": enhanced_prompt}
+                    ],
+                    max_tokens=600,
+                    temperature=0.3
+                )
+                break  # Success! Exit the loop
+            except Exception as model_error:
+                if "does not exist" in str(model_error) or "not found" in str(model_error):
+                    continue  # Try next model
+                else:
+                    raise model_error  # Different error, don't continue
+        
+        if response is None:
+            raise Exception("No available OpenAI models found")
         
         ai_response = response.choices[0].message.content
         return f"{basic_analysis}\n\n=== 🤖 AI Business Intelligence ===\n{ai_response}"
