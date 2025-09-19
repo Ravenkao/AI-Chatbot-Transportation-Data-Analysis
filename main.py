@@ -444,6 +444,10 @@ def answer_question_with_ai(question):
     # Get basic analysis first
     basic_analysis = analyze_transportation_query(question)
     
+    # Check if transportation data is available
+    if transportation_df is None:
+        return basic_analysis + "\n\n[Enhanced AI analysis requires transportation dataset to be loaded]"
+    
     # Try to enhance with OpenAI if available
     client = get_openai_client()
     if client is None:
