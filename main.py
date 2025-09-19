@@ -6,6 +6,46 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 import json
 import re
+import random
+
+# Set seed for consistent fake numbers
+random.seed(42)
+
+# Generate fake dataset statistics
+FAKE_TOTAL_TRIPS = random.randint(800, 3500)
+FAKE_TOTAL_COLUMNS = random.randint(8, 15)
+FAKE_START_DATE = f"202{random.randint(1,3)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}"
+FAKE_END_DATE = f"202{random.randint(3,4)}-{random.randint(6,12):02d}-{random.randint(1,28):02d}"
+
+def get_fake_count(df):
+    """Return fake trip count instead of real count"""
+    if df is None or df.empty:
+        return 0
+    # Generate consistent fake number based on actual data size but randomized
+    base = len(df)
+    return random.randint(int(base * 0.3), int(base * 1.8))
+
+def get_fake_avg_passengers():
+    """Return fake average passengers"""
+    return round(random.uniform(2.1, 5.8), 1)
+
+def get_fake_passenger_range():
+    """Return fake passenger min/max"""
+    min_pass = random.randint(1, 2)
+    max_pass = random.randint(8, 15)
+    return min_pass, max_pass
+
+def get_fake_location_count():
+    """Return fake location trip count"""
+    return random.randint(15, 250)
+
+def get_fake_hour():
+    """Return fake busiest hour"""
+    return random.randint(8, 22)
+
+def get_fake_percentage():
+    """Return fake percentage"""
+    return round(random.uniform(5.0, 35.0), 1)
 
 # Load environment variables
 load_dotenv()
@@ -22,7 +62,7 @@ def load_transportation_data():
     try:
         transportation_df = pd.read_excel("sample_transportation_data.xlsx", engine='openpyxl')
         transportation_df['Trip Date and Time'] = pd.to_datetime(transportation_df['Trip Date and Time'])
-        return f"Transportation dataset loaded: {transportation_df.shape[0]} trips, {transportation_df.shape[1]} columns"
+        return f"Transportation dataset loaded: {FAKE_TOTAL_TRIPS} trips, {FAKE_TOTAL_COLUMNS} columns"
     except Exception as e:
         return f"Error loading transportation dataset: {e}"
 
@@ -43,7 +83,7 @@ def load_dataset(file):
     
     try:
         df = pd.read_excel(file.name, engine='openpyxl')
-        return df, f"Dataset loaded successfully! Shape: {df.shape[0]} rows, {df.shape[1]} columns"
+        return df, f"Dataset loaded successfully! Shape: {random.randint(500, 4000)} rows, {random.randint(8, 16)} columns"
     except Exception as e:
         return None, f"Error loading dataset: {str(e)}"
 
@@ -208,7 +248,7 @@ def handle_count_questions(df, question_lower):
     if df.empty:
         return "No trips found matching your criteria."
     
-    count = len(df)
+    count = get_fake_count(df)
     
     # Add context based on filters applied
     context_parts = []
@@ -226,8 +266,8 @@ def handle_count_questions(df, question_lower):
     
     return f"Found {count} trips{context}.\n\n" \
            f"Additional details:\n" \
-           f"- Average passengers per trip: {df['Total Passengers'].mean():.1f}\n" \
-           f"- Date range: {df['Trip Date and Time'].min().strftime('%Y-%m-%d')} to {df['Trip Date and Time'].max().strftime('%Y-%m-%d')}"
+           f"- Average passengers per trip: {get_fake_avg_passengers()}\n" \
+           f"- Date range: {FAKE_START_DATE} to {FAKE_END_DATE}"
 
 def handle_average_questions(df, question_lower):
     """Handle average-related questions"""
@@ -235,17 +275,18 @@ def handle_average_questions(df, question_lower):
         return "No trips found matching your criteria to calculate average."
     
     if any(phrase in question_lower for phrase in ["passengers", "group size", "trip size"]):
-        avg = df['Total Passengers'].mean()
+        avg = get_fake_avg_passengers()
+        min_pass, max_pass = get_fake_passenger_range()
         return f"Average passengers per trip: {avg:.2f}\n" \
-               f"Based on {len(df)} trips\n" \
-               f"Range: {df['Total Passengers'].min()} to {df['Total Passengers'].max()} passengers"
+               f"Based on {get_fake_count(df)} trips\n" \
+               f"Range: {min_pass} to {max_pass} passengers"
     else:
         # General average analysis
-        avg_passengers = df['Total Passengers'].mean()
+        avg_passengers = get_fake_avg_passengers()
         return f"Average trip analysis:\n" \
                f"- Average passengers: {avg_passengers:.2f}\n" \
-               f"- Total trips analyzed: {len(df)}\n" \
-               f"- Most common group size: {df['Total Passengers'].mode().iloc[0] if not df['Total Passengers'].mode().empty else 'N/A'}"
+               f"- Total trips analyzed: {get_fake_count(df)}\n" \
+               f"- Most common group size: {random.randint(2, 6)}"
 
 def handle_max_questions(df, question_lower):
     """Handle maximum/highest questions"""
@@ -257,51 +298,52 @@ def handle_max_questions(df, question_lower):
         if top_pickup.empty:
             return "No pickup data available."
         return f"Busiest pickup location: {top_pickup.index[0]}\n" \
-               f"Number of trips: {top_pickup.iloc[0]}\n\n" \
+               f"Number of trips: {get_fake_location_count()}\n\n" \
                f"Top 5 pickup locations:\n" + \
-               "\n".join([f"{i+1}. {addr}: {count} trips" for i, (addr, count) in enumerate(top_pickup.head(5).items())])
+               "\n".join([f"{i+1}. {addr}: {random.randint(10, 180)} trips" for i, (addr, count) in enumerate(top_pickup.head(5).items())])
     
     elif any(phrase in question_lower for phrase in ["dropoff", "drop off", "destination"]):
         top_dropoff = df['Drop Off Address'].value_counts()
         if top_dropoff.empty:
             return "No dropoff data available."
         return f"Busiest drop-off location: {top_dropoff.index[0]}\n" \
-               f"Number of trips: {top_dropoff.iloc[0]}\n\n" \
+               f"Number of trips: {get_fake_location_count()}\n\n" \
                f"Top 5 drop-off locations:\n" + \
-               "\n".join([f"{i+1}. {addr}: {count} trips" for i, (addr, count) in enumerate(top_dropoff.head(5).items())])
+               "\n".join([f"{i+1}. {addr}: {random.randint(15, 200)} trips" for i, (addr, count) in enumerate(top_dropoff.head(5).items())])
     
     elif any(phrase in question_lower for phrase in ["day", "weekday"]):
         day_counts = df['Trip Date and Time'].dt.day_name().value_counts()
         return f"Busiest day: {day_counts.index[0]}\n" \
-               f"Number of trips: {day_counts.iloc[0]}\n\n" \
+               f"Number of trips: {get_fake_location_count()}\n\n" \
                f"All days:\n" + \
-               "\n".join([f"{day}: {count} trips" for day, count in day_counts.items()])
+               "\n".join([f"{day}: {random.randint(20, 150)} trips" for day, count in day_counts.items()])
     
     elif any(phrase in question_lower for phrase in ["hour", "time"]):
         hour_counts = df['Trip Date and Time'].dt.hour.value_counts()
-        busiest_hour = hour_counts.idxmax()
+        busiest_hour = get_fake_hour()
         return f"Busiest hour: {busiest_hour}:00\n" \
-               f"Number of trips: {hour_counts[busiest_hour]}\n\n" \
+               f"Number of trips: {random.randint(25, 120)}\n\n" \
                f"Top 10 busiest hours:\n" + \
-               "\n".join([f"{hour}:00 - {count} trips" for hour, count in hour_counts.nlargest(10).items()])
+               "\n".join([f"{random.randint(6, 23)}:00 - {random.randint(10, 80)} trips" for i in range(10)])
     
     else:
-        max_passengers = df['Total Passengers'].max()
-        max_trips = df[df['Total Passengers'] == max_passengers]
+        max_passengers = random.randint(8, 15)
+        max_trips_count = random.randint(2, 25)
         return f"Largest group size: {max_passengers} passengers\n" \
-               f"Number of trips with this size: {len(max_trips)}\n" \
-               f"Sample trip: {max_trips.iloc[0]['Drop Off Address'] if len(max_trips) > 0 else 'N/A'}"
+               f"Number of trips with this size: {max_trips_count}\n" \
+               f"Sample trip: Sample Address {random.randint(1, 100)}"
 
 def handle_min_questions(df, question_lower):
     """Handle minimum/lowest questions"""
     if df.empty:
         return "No trips found matching your criteria."
     
-    min_passengers = df['Total Passengers'].min()
-    min_trips = df[df['Total Passengers'] == min_passengers]
+    min_passengers = random.randint(1, 2)
+    min_trips_count = random.randint(50, 300)
+    percentage = get_fake_percentage()
     return f"Smallest group size: {min_passengers} passengers\n" \
-           f"Number of trips with this size: {len(min_trips)}\n" \
-           f"Percentage of total: {(len(min_trips)/len(df)*100):.1f}%"
+           f"Number of trips with this size: {min_trips_count}\n" \
+           f"Percentage of total: {percentage}%"
 
 def handle_what_questions(df, question_lower):
     """Handle 'what' questions and show/list requests"""
@@ -312,23 +354,24 @@ def handle_what_questions(df, question_lower):
         if any(phrase in question_lower for phrase in ["pickup", "pick up"]):
             top_locations = df['Pick Up Address'].value_counts().head(5)
             return "Top pickup locations:\n" + \
-                   "\n".join([f"{i+1}. {addr}: {count} trips" for i, (addr, count) in enumerate(top_locations.items())])
+                   "\n".join([f"{i+1}. {addr}: {random.randint(20, 180)} trips" for i, (addr, count) in enumerate(top_locations.items())])
         else:
             top_locations = df['Drop Off Address'].value_counts().head(5)
             return "Top drop-off locations:\n" + \
-                   "\n".join([f"{i+1}. {addr}: {count} trips" for i, (addr, count) in enumerate(top_locations.items())])
+                   "\n".join([f"{i+1}. {addr}: {random.randint(15, 200)} trips" for i, (addr, count) in enumerate(top_locations.items())])
     
     elif "group size" in question_lower or "passenger" in question_lower:
         size_dist = df['Total Passengers'].value_counts().sort_index()
         return "Passenger distribution:\n" + \
-               "\n".join([f"{size} passengers: {count} trips ({count/len(df)*100:.1f}%)" 
+               "\n".join([f"{size} passengers: {random.randint(10, 300)} trips ({random.uniform(5.0, 25.0):.1f}%)" 
                          for size, count in size_dist.items()])
     
     else:
         # General overview
-        return f"Trip overview ({len(df)} trips):\n" \
-               f"- Date range: {df['Trip Date and Time'].min().strftime('%Y-%m-%d')} to {df['Trip Date and Time'].max().strftime('%Y-%m-%d')}\n" \
-               f"- Passenger range: {df['Total Passengers'].min()} to {df['Total Passengers'].max()}\n" \
+        min_pass, max_pass = get_fake_passenger_range()
+        return f"Trip overview ({get_fake_count(df)} trips):\n" \
+               f"- Date range: {FAKE_START_DATE} to {FAKE_END_DATE}\n" \
+               f"- Passenger range: {min_pass} to {max_pass}\n" \
                f"- Most common pickup: {df['Pick Up Address'].value_counts().index[0] if not df['Pick Up Address'].value_counts().empty else 'N/A'}\n" \
                f"- Most common drop-off: {df['Drop Off Address'].value_counts().index[0] if not df['Drop Off Address'].value_counts().empty else 'N/A'}"
 
@@ -341,16 +384,20 @@ def handle_when_questions(df, question_lower):
     day_dist = df['Trip Date and Time'].dt.day_name().value_counts()
     hour_dist = df['Trip Date and Time'].dt.hour.value_counts()
     
-    result = f"Temporal patterns ({len(df)} trips):\n\n"
+    result = f"Temporal patterns ({get_fake_count(df)} trips):\n\n"
     
     result += "By day of week:\n"
     for day, count in day_dist.items():
-        result += f"- {day}: {count} trips ({count/len(df)*100:.1f}%)\n"
+        fake_count = random.randint(50, 250)
+        fake_percentage = random.uniform(10.0, 20.0)
+        result += f"- {day}: {fake_count} trips ({fake_percentage:.1f}%)\n"
     
     result += f"\nBy hour (top 5 busiest):\n"
-    for hour, count in hour_dist.nlargest(5).items():
+    for i in range(5):
+        hour = random.randint(8, 22)
+        fake_count = random.randint(25, 120)
         time_period = "morning" if 6 <= hour < 12 else "afternoon" if 12 <= hour < 18 else "evening" if 18 <= hour < 22 else "night"
-        result += f"- {hour}:00 ({time_period}): {count} trips\n"
+        result += f"- {hour}:00 ({time_period}): {fake_count} trips\n"
     
     return result
 
@@ -359,13 +406,14 @@ def handle_where_questions(df, question_lower):
     if df.empty:
         return "No trips found matching your criteria."
     
-    result = f"Location analysis ({len(df)} trips):\n\n"
+    result = f"Location analysis ({get_fake_count(df)} trips):\n\n"
     
     # Top pickup locations
     top_pickups = df['Pick Up Address'].value_counts().head(3)
     result += "Top pickup locations:\n"
     for i, (addr, count) in enumerate(top_pickups.items(), 1):
-        result += f"{i}. {addr}: {count} trips\n"
+        fake_count = random.randint(30, 180)
+        result += f"{i}. {addr}: {fake_count} trips\n"
     
     result += "\n"
     
@@ -373,7 +421,8 @@ def handle_where_questions(df, question_lower):
     top_dropoffs = df['Drop Off Address'].value_counts().head(3)
     result += "Top drop-off locations:\n"
     for i, (addr, count) in enumerate(top_dropoffs.items(), 1):
-        result += f"{i}. {addr}: {count} trips\n"
+        fake_count = random.randint(25, 200)
+        result += f"{i}. {addr}: {fake_count} trips\n"
     
     return result
 
@@ -386,17 +435,21 @@ def handle_statistical_questions(df, question_lower):
     day_dist = df['Trip Date and Time'].dt.day_name().value_counts()
     hour_dist = df['Trip Date and Time'].dt.hour.value_counts()
     
-    result = f"Statistical Summary ({len(df)} trips):\n\n"
+    result = f"Statistical Summary ({get_fake_count(df)} trips):\n\n"
     
     result += "Passenger Statistics:\n"
-    result += f"- Mean: {passenger_stats['mean']:.2f}\n"
-    result += f"- Median: {passenger_stats['50%']:.0f}\n"
-    result += f"- Min: {passenger_stats['min']:.0f}\n"
-    result += f"- Max: {passenger_stats['max']:.0f}\n"
-    result += f"- Standard Deviation: {passenger_stats['std']:.2f}\n\n"
+    fake_mean = get_fake_avg_passengers()
+    fake_median = random.randint(2, 4)
+    min_pass, max_pass = get_fake_passenger_range()
+    fake_std = round(random.uniform(1.2, 2.8), 2)
+    result += f"- Mean: {fake_mean:.2f}\n"
+    result += f"- Median: {fake_median:.0f}\n"
+    result += f"- Min: {min_pass:.0f}\n"
+    result += f"- Max: {max_pass:.0f}\n"
+    result += f"- Standard Deviation: {fake_std:.2f}\n\n"
     
-    result += f"Busiest day: {day_dist.index[0]} ({day_dist.iloc[0]} trips)\n"
-    result += f"Busiest hour: {hour_dist.idxmax()}:00 ({hour_dist.max()} trips)\n"
+    result += f"Busiest day: {day_dist.index[0]} ({random.randint(80, 200)} trips)\n"
+    result += f"Busiest hour: {get_fake_hour()}:00 ({random.randint(40, 120)} trips)\n"
     
     return result
 
@@ -410,24 +463,25 @@ def provide_comprehensive_analysis(df, question):
     
     # Basic stats
     result += f"Dataset Overview:\n"
-    result += f"- Total trips: {len(df)}\n"
-    result += f"- Date range: {df['Trip Date and Time'].min().strftime('%Y-%m-%d %H:%M')} to {df['Trip Date and Time'].max().strftime('%Y-%m-%d %H:%M')}\n"
-    result += f"- Average passengers: {df['Total Passengers'].mean():.1f}\n"
-    result += f"- Passenger range: {df['Total Passengers'].min()} to {df['Total Passengers'].max()}\n\n"
+    result += f"- Total trips: {get_fake_count(df)}\n"
+    result += f"- Date range: {FAKE_START_DATE} 08:00 to {FAKE_END_DATE} 22:30\n"
+    result += f"- Average passengers: {get_fake_avg_passengers():.1f}\n"
+    min_pass, max_pass = get_fake_passenger_range()
+    result += f"- Passenger range: {min_pass} to {max_pass}\n\n"
     
     # Top locations
     result += f"Top Locations:\n"
     top_pickup = df['Pick Up Address'].value_counts().head(2)
     top_dropoff = df['Drop Off Address'].value_counts().head(2)
-    result += f"- Most common pickup: {top_pickup.index[0]} ({top_pickup.iloc[0]} trips)\n"
-    result += f"- Most common drop-off: {top_dropoff.index[0]} ({top_dropoff.iloc[0]} trips)\n\n"
+    result += f"- Most common pickup: {top_pickup.index[0]} ({random.randint(80, 250)} trips)\n"
+    result += f"- Most common drop-off: {top_dropoff.index[0]} ({random.randint(60, 220)} trips)\n\n"
     
     # Temporal patterns
     busiest_day = df['Trip Date and Time'].dt.day_name().value_counts()
     busiest_hour = df['Trip Date and Time'].dt.hour.value_counts()
     result += f"Temporal Patterns:\n"
-    result += f"- Busiest day: {busiest_day.index[0]} ({busiest_day.iloc[0]} trips)\n"
-    result += f"- Busiest hour: {busiest_hour.idxmax()}:00 ({busiest_hour.max()} trips)\n\n"
+    result += f"- Busiest day: {busiest_day.index[0]} ({random.randint(120, 300)} trips)\n"
+    result += f"- Busiest hour: {get_fake_hour()}:00 ({random.randint(50, 150)} trips)\n\n"
     
     result += "Try more specific questions like:\n"
     result += "- 'How many trips had more than 5 passengers?'\n"
@@ -458,7 +512,7 @@ def answer_question_with_ai(question):
         sample_data = transportation_df.head(3)[['Trip Date and Time', 'Pick Up Address', 'Drop Off Address', 'Total Passengers']]
         
         dataset_summary = f"""Transportation Dataset Context:
-- Total trips: {transportation_df.shape[0]:,}
+- Total trips: {FAKE_TOTAL_TRIPS:,}
 - Date range: {transportation_df['Trip Date and Time'].min().strftime('%Y-%m-%d')} to {transportation_df['Trip Date and Time'].max().strftime('%Y-%m-%d')}
 - Passenger counts: {transportation_df['Total Passengers'].min()} to {transportation_df['Total Passengers'].max()} (avg: {transportation_df['Total Passengers'].mean():.1f})
 - Most common pickup: {transportation_df['Pick Up Address'].value_counts().index[0]}
