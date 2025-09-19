@@ -55,16 +55,18 @@ openai_client = None
 
 # Load the transportation dataset automatically
 transportation_df = None
+# Store user uploaded dataset
+user_df = None
+current_dataset_type = "sample"  # "sample" or "user"
 
 def load_transportation_data():
     """Load the sample transportation dataset"""
-    global transportation_df
     try:
         transportation_df = pd.read_excel("sample_transportation_data.xlsx", engine='openpyxl')
         transportation_df['Trip Date and Time'] = pd.to_datetime(transportation_df['Trip Date and Time'])
-        return f"Transportation dataset loaded: {FAKE_TOTAL_TRIPS} trips, {FAKE_TOTAL_COLUMNS} columns"
+        return transportation_df, f"Transportation dataset loaded: {FAKE_TOTAL_TRIPS} trips, {FAKE_TOTAL_COLUMNS} columns"
     except Exception as e:
-        return f"Error loading transportation dataset: {e}"
+        return None, f"Error loading transportation dataset: {e}"
 
 def get_openai_client():
     """Initialize OpenAI client only when needed"""
@@ -76,75 +78,215 @@ def get_openai_client():
         openai_client = OpenAI(api_key=api_key)
     return openai_client
 
-def load_dataset(file):
+def load_user_dataset(file, session_state):
     """Load the Excel dataset from uploaded file"""
     if file is None:
-        return None, "Please upload an Excel file first."
+        return session_state, "No file uploaded. Using sample dataset.", None
     
     try:
-        df = pd.read_excel(file.name, engine='openpyxl')
-        return df, f"Dataset loaded successfully! Shape: {random.randint(500, 4000)} rows, {random.randint(8, 16)} columns"
+        user_df = pd.read_excel(file, engine='openpyxl')
+        
+        # Validate that we have some basic columns for analysis
+        if user_df.empty:
+            return session_state, "Uploaded file is empty. Using sample dataset.", None
+        
+        # Try to identify datetime columns
+        datetime_cols = []
+        for col in user_df.columns:
+            if user_df[col].dtype == 'object':
+                try:
+                    pd.to_datetime(user_df[col], errors='raise')
+                    datetime_cols.append(col)
+                except:
+                    pass
+        
+        # Convert identified datetime columns
+        for col in datetime_cols:
+            user_df[col] = pd.to_datetime(user_df[col])
+        
+        # Update session state
+        new_session_state = session_state.copy() if session_state else {}
+        new_session_state['user_df'] = user_df
+        new_session_state['current_dataset_type'] = 'user'
+        
+        status = f"✅ User dataset loaded successfully!\n📊 Shape: {user_df.shape[0]} rows, {user_df.shape[1]} columns\n📅 Datetime columns detected: {len(datetime_cols)}\n🗂️ Columns: {', '.join(user_df.columns[:5])}{'...' if len(user_df.columns) > 5 else ''}"
+        
+        return new_session_state, status, user_df.head(10)
+        
     except Exception as e:
-        return None, f"Error loading dataset: {str(e)}"
+        status = f"Error loading file: {str(e)}\nUsing sample dataset instead."
+        return session_state, status, None
 
-def analyze_transportation_query(question):
-    """Enhanced analyzer that can handle ANY type of question about transportation data"""
-    global transportation_df
+def get_current_dataset(session_state):
+    """Get the currently active dataset"""
+    if not session_state:
+        return None, "sample"
     
-    if transportation_df is None:
-        return "Transportation dataset not loaded. Please restart the application."
+    current_type = session_state.get('current_dataset_type', 'sample')
+    
+    if current_type == "user" and session_state.get('user_df') is not None:
+        return session_state.get('user_df'), "user"
+    else:
+        return session_state.get('transportation_df'), "sample"
+
+def switch_to_sample_dataset(session_state):
+    """Switch back to using sample dataset"""
+    new_session_state = session_state.copy() if session_state else {}
+    new_session_state['current_dataset_type'] = 'sample'
+    
+    # Get sample dataset preview if available
+    transportation_df = new_session_state.get('transportation_df')
+    preview = transportation_df.head(10) if transportation_df is not None else None
+    
+    return new_session_state, "Switched to sample transportation dataset.", preview
+
+def analyze_user_data_query(question, df, dataset_type):
+    """Analyze user uploaded data with real results"""
+    if df is None or df.empty:
+        return "No data available for analysis."
     
     question_lower = question.lower()
-    df = transportation_df.copy()
     
     try:
-        # Extract filters and modifiers from the question first
-        filtered_df = apply_question_filters(df, question_lower)
-        
-        # Pattern matching for different question types
-        result = None
-        
-        # Count questions (how many, count)
-        if any(phrase in question_lower for phrase in ["how many", "count", "number of"]):
-            result = handle_count_questions(filtered_df, question_lower)
+        # For user data, provide real analysis
+        if dataset_type == "user":
+            return analyze_generic_dataset(df, question_lower)
+        else:
+            # For sample data, use fake numbers to protect original data
+            return analyze_sample_dataset(df, question_lower)
             
-        # Average questions
-        elif any(phrase in question_lower for phrase in ["average", "avg", "mean"]):
-            result = handle_average_questions(filtered_df, question_lower)
-            
-        # Maximum/minimum questions
-        elif any(phrase in question_lower for phrase in ["maximum", "max", "highest", "most", "busiest"]):
-            result = handle_max_questions(filtered_df, question_lower)
-        elif any(phrase in question_lower for phrase in ["minimum", "min", "lowest", "least", "smallest"]):
-            result = handle_min_questions(filtered_df, question_lower)
-            
-        # What questions (top, list, show)
-        elif any(phrase in question_lower for phrase in ["what", "show", "list", "top", "which"]):
-            result = handle_what_questions(filtered_df, question_lower)
-            
-        # When questions (temporal analysis)
-        elif any(phrase in question_lower for phrase in ["when", "time", "hour", "day"]):
-            result = handle_when_questions(filtered_df, question_lower)
-            
-        # Where questions (location analysis)
-        elif any(phrase in question_lower for phrase in ["where", "location", "address", "pickup", "dropoff", "drop off"]):
-            result = handle_where_questions(filtered_df, question_lower)
-            
-        # Statistical questions
-        elif any(phrase in question_lower for phrase in ["distribution", "breakdown", "summary", "statistics", "stats"]):
-            result = handle_statistical_questions(filtered_df, question_lower)
-            
-        # If no specific pattern matches, provide comprehensive analysis
-        if result is None:
-            result = provide_comprehensive_analysis(filtered_df, question)
-            
-        return result
-        
     except Exception as e:
-        return f"Error analyzing query: {str(e)}\n\nPlease try rephrasing your question. Examples:\n" \
-               f"- 'How many trips had more than 5 passengers?'\n" \
-               f"- 'What's the busiest pickup location?'\n" \
-               f"- 'Show me trips on weekends'"
+        return f"Error analyzing data: {str(e)}\n\nPlease try rephrasing your question or check if your data has the expected columns."
+
+def analyze_generic_dataset(df, question_lower):
+    """Analyze any dataset with real results"""
+    # Get basic info about the dataset
+    total_rows = len(df)
+    
+    # Try to identify numeric columns for analysis
+    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    datetime_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
+    text_cols = df.select_dtypes(include=['object']).columns.tolist()
+    
+    # Basic analysis based on question type
+    if any(phrase in question_lower for phrase in ["how many", "count", "number of"]):
+        return f"Total records in dataset: {total_rows}\n\nDataset Overview:\n- Numeric columns: {len(numeric_cols)}\n- Date/time columns: {len(datetime_cols)}\n- Text columns: {len(text_cols)}\n\nColumns available: {', '.join(df.columns[:10])}{'...' if len(df.columns) > 10 else ''}"
+    
+    elif any(phrase in question_lower for phrase in ["average", "mean", "avg"]):
+        if numeric_cols:
+            result = "Average values:\n"
+            for col in numeric_cols[:5]:  # Show top 5 numeric columns
+                avg_val = df[col].mean()
+                result += f"- {col}: {avg_val:.2f}\n"
+            return result
+        else:
+            return "No numeric columns found for average calculation."
+    
+    elif any(phrase in question_lower for phrase in ["maximum", "max", "highest", "most"]):
+        if numeric_cols:
+            result = "Maximum values:\n"
+            for col in numeric_cols[:5]:
+                max_val = df[col].max()
+                result += f"- {col}: {max_val}\n"
+            return result
+        else:
+            return "No numeric columns found for maximum calculation."
+    
+    elif any(phrase in question_lower for phrase in ["minimum", "min", "lowest", "least"]):
+        if numeric_cols:
+            result = "Minimum values:\n"
+            for col in numeric_cols[:5]:
+                min_val = df[col].min()
+                result += f"- {col}: {min_val}\n"
+            return result
+        else:
+            return "No numeric columns found for minimum calculation."
+    
+    elif any(phrase in question_lower for phrase in ["what", "show", "list", "columns"]):
+        result = f"Dataset Information:\n\n"
+        result += f"📊 Shape: {df.shape[0]} rows × {df.shape[1]} columns\n\n"
+        result += f"📋 Column Details:\n"
+        for i, col in enumerate(df.columns, 1):
+            col_type = str(df[col].dtype)
+            unique_count = df[col].nunique()
+            result += f"{i}. {col} ({col_type}) - {unique_count} unique values\n"
+        
+        if datetime_cols:
+            result += f"\n📅 Date Range:\n"
+            for col in datetime_cols[:3]:
+                try:
+                    min_date = df[col].min()
+                    max_date = df[col].max()
+                    result += f"- {col}: {min_date.strftime('%Y-%m-%d')} to {max_date.strftime('%Y-%m-%d')}\n"
+                except:
+                    pass
+        
+        return result
+    
+    else:
+        # General overview
+        result = f"Dataset Overview:\n\n"
+        result += f"📊 Total Records: {total_rows:,}\n"
+        result += f"📋 Total Columns: {len(df.columns)}\n\n"
+        
+        if numeric_cols:
+            result += f"🔢 Numeric Columns ({len(numeric_cols)}):\n"
+            for col in numeric_cols[:5]:
+                result += f"- {col}\n"
+        
+        if datetime_cols:
+            result += f"\n📅 DateTime Columns ({len(datetime_cols)}):\n"
+            for col in datetime_cols[:5]:
+                result += f"- {col}\n"
+        
+        if text_cols:
+            result += f"\n📝 Text Columns ({len(text_cols)}):\n"
+            for col in text_cols[:5]:
+                result += f"- {col}\n"
+        
+        result += f"\n💡 Try asking specific questions like:\n"
+        result += f"- 'How many records are there?'\n"
+        result += f"- 'What are the columns in this dataset?'\n"
+        if numeric_cols:
+            result += f"- 'What's the average {numeric_cols[0]}?'\n"
+        if datetime_cols:
+            result += f"- 'What's the date range for {datetime_cols[0]}?'\n"
+        
+        return result
+
+def analyze_sample_dataset(df, question_lower):
+    """Analyze sample dataset with fake numbers for privacy"""
+    # Use existing fake analysis for sample data
+    filtered_df = apply_question_filters(df, question_lower)
+    
+    # Pattern matching for different question types (keeping existing logic)
+    if any(phrase in question_lower for phrase in ["how many", "count", "number of"]):
+        return handle_count_questions(filtered_df, question_lower)
+    elif any(phrase in question_lower for phrase in ["average", "avg", "mean"]):
+        return handle_average_questions(filtered_df, question_lower)
+    elif any(phrase in question_lower for phrase in ["maximum", "max", "highest", "most", "busiest"]):
+        return handle_max_questions(filtered_df, question_lower)
+    elif any(phrase in question_lower for phrase in ["minimum", "min", "lowest", "least", "smallest"]):
+        return handle_min_questions(filtered_df, question_lower)
+    elif any(phrase in question_lower for phrase in ["what", "show", "list", "top", "which"]):
+        return handle_what_questions(filtered_df, question_lower)
+    elif any(phrase in question_lower for phrase in ["when", "time", "hour", "day"]):
+        return handle_when_questions(filtered_df, question_lower)
+    elif any(phrase in question_lower for phrase in ["where", "location", "address", "pickup", "dropoff", "drop off"]):
+        return handle_where_questions(filtered_df, question_lower)
+    elif any(phrase in question_lower for phrase in ["distribution", "breakdown", "summary", "statistics", "stats"]):
+        return handle_statistical_questions(filtered_df, question_lower)
+    else:
+        return provide_comprehensive_analysis(filtered_df, "general analysis")
+
+def analyze_transportation_query(question, session_state):
+    """Enhanced analyzer that can handle ANY type of question about transportation data"""
+    df, dataset_type = get_current_dataset(session_state)
+    
+    if df is None:
+        return "No dataset loaded. Please upload a file or restart the application."
+    
+    return analyze_user_data_query(question, df, dataset_type)
 
 def apply_question_filters(df, question_lower):
     """Apply filters based on question context"""
@@ -491,14 +633,13 @@ def provide_comprehensive_analysis(df, question):
     
     return result
 
-def answer_question_with_ai(question):
+def answer_question_with_ai(question, session_state):
     """Use OpenAI to provide enhanced analysis"""
-    global transportation_df
-    
     # Get basic analysis first
-    basic_analysis = analyze_transportation_query(question)
+    basic_analysis = analyze_transportation_query(question, session_state)
     
     # Check if transportation data is available
+    transportation_df = session_state.get('transportation_df') if session_state else None
     if transportation_df is None:
         return basic_analysis + "\n\n[Enhanced AI analysis requires transportation dataset to be loaded]"
     
@@ -576,37 +717,131 @@ Focus on practical insights that would be valuable for ride-sharing operations, 
         else:
             return f"{basic_analysis}\n\n[AI enhancement temporarily unavailable: {error_message}]"
 
-def answer_question(question, dataset_state):
+def answer_question(question, session_state):
     """Main question answering function"""
     if not question.strip():
-        return "Please enter a question about the transportation dataset."
+        return "Please enter a question about the dataset."
     
-    # Use the pre-loaded transportation dataset instead of uploaded files
-    return answer_question_with_ai(question)
+    df, dataset_type = get_current_dataset(session_state)
+    
+    if df is None:
+        return "No dataset available. Please upload a file or use the sample dataset."
+    
+    # Get basic analysis first
+    basic_analysis = analyze_transportation_query(question, session_state)
+    
+    # For user datasets, also try AI enhancement if available
+    if dataset_type == "user":
+        client = get_openai_client()
+        if client is not None:
+            try:
+                # Prepare dataset context for AI
+                sample_data = df.head(3)
+                dataset_summary = f"""Dataset Context:
+- Total records: {len(df):,}
+- Columns: {len(df.columns)}
+- Sample data structure:
+{sample_data.to_string()}
+
+User Question: "{question}"
+
+Analysis Results:
+{basic_analysis}"""
+                
+                enhanced_prompt = f"""As a data analyst, interpret this dataset analysis and provide insights.
+
+{dataset_summary}
+
+Provide:
+1. Key insights from the data patterns
+2. Potential business implications
+3. Recommendations for further analysis
+4. Any notable trends or patterns
+
+Focus on practical insights that would be valuable for decision-making."""
+                
+                models_to_try = ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"]
+                response = None
+                for model in models_to_try:
+                    try:
+                        response = client.chat.completions.create(
+                            model=model,
+                            messages=[
+                                {"role": "system", "content": "You are a senior data analyst with expertise in interpreting datasets and providing actionable business insights."},
+                                {"role": "user", "content": enhanced_prompt}
+                            ],
+                            max_tokens=600,
+                            temperature=0.3
+                        )
+                        break
+                    except Exception as model_error:
+                        if "does not exist" in str(model_error) or "not found" in str(model_error):
+                            continue
+                        else:
+                            raise model_error
+                
+                if response is not None:
+                    ai_response = response.choices[0].message.content
+                    return f"{basic_analysis}\n\n=== 🤖 AI Insights ===\n{ai_response}"
+                    
+            except Exception as e:
+                error_message = str(e)
+                if "insufficient_quota" in error_message or "429" in error_message:
+                    return f"{basic_analysis}\n\n💡 **OpenAI Quota Exceeded**: The analysis above provides comprehensive insights. To get AI-enhanced insights, add credits to your OpenAI account."
+                
+    return basic_analysis
 
 def create_interface():
-    """Create the Gradio interface"""
+    """Create the Gradio interface with session state management"""
     
     with gr.Blocks(title="AI Chatbot - Transportation Data Analysis") as interface:
         gr.Markdown("# 🤖 AI Chatbot - Transportation Data Analysis")
-        gr.Markdown("**Ask ANY question about the transportation dataset!** The AI can analyze trips, passengers, locations, timing patterns, and much more.")
+        gr.Markdown("**Upload your own Excel dataset or use our sample data!** Ask questions about your data and get intelligent insights.")
         
-        # Load transportation data on startup
-        load_status = load_transportation_data()
+        # Session state
+        session_state = gr.State({})
         
-        # Dataset info
+        # Initialize session state with sample data
+        def initialize_session():
+            transportation_df, load_status = load_transportation_data()
+            initial_state = {
+                'transportation_df': transportation_df,
+                'user_df': None,
+                'current_dataset_type': 'sample'
+            }
+            preview_data = transportation_df.head(10) if transportation_df is not None else None
+            return initial_state, load_status, preview_data
+        
+        # File upload section
         with gr.Row():
-            dataset_info = gr.Textbox(
-                label="Dataset Status",
-                value=load_status,
-                interactive=False
-            )
+            with gr.Column(scale=3):
+                file_upload = gr.File(
+                    label="📁 Upload Your Excel Dataset (.xlsx, .xls)",
+                    file_types=[".xlsx", ".xls"],
+                    type="filepath"
+                )
+            with gr.Column(scale=1):
+                sample_btn = gr.Button("Use Sample Data", variant="secondary")
+        
+        # Dataset info and preview
+        with gr.Row():
+            with gr.Column(scale=1):
+                dataset_info = gr.Textbox(
+                    label="Dataset Status",
+                    interactive=False,
+                    lines=4
+                )
+            with gr.Column(scale=2):
+                data_preview = gr.DataFrame(
+                    label="Data Preview (First 10 rows)",
+                    interactive=False
+                )
         
         with gr.Row():
             # Question input
             question_input = gr.Textbox(
-                label="Ask ANY question about the transportation data",
-                placeholder="e.g., How many trips had more than 8 passengers? What's the busiest pickup location? Show me weekend patterns",
+                label="Ask ANY question about your data",
+                placeholder="e.g., How many records are there? What are the columns? Show me statistics for numeric fields",
                 lines=2
             )
             
@@ -621,16 +856,48 @@ def create_interface():
         )
         
         # Event handlers
+        def handle_file_upload(file, current_session_state):
+            new_session_state, status, preview = load_user_dataset(file, current_session_state)
+            return new_session_state, status, preview
+        
+        def handle_sample_switch(current_session_state):
+            new_session_state, status, preview = switch_to_sample_dataset(current_session_state)
+            return new_session_state, status, preview
+        
+        def handle_question(question, current_session_state):
+            if not question.strip():
+                return "Please enter a question about the dataset."
+            return answer_question(question, current_session_state)
+        
+        # Initialize on page load
+        interface.load(
+            fn=initialize_session,
+            inputs=[],
+            outputs=[session_state, dataset_info, data_preview]
+        )
+        
+        file_upload.change(
+            fn=handle_file_upload,
+            inputs=[file_upload, session_state],
+            outputs=[session_state, dataset_info, data_preview]
+        )
+        
+        sample_btn.click(
+            fn=handle_sample_switch,
+            inputs=[session_state],
+            outputs=[session_state, dataset_info, data_preview]
+        )
+        
         submit_btn.click(
-            fn=answer_question,
-            inputs=[question_input, gr.State(None)],
+            fn=handle_question,
+            inputs=[question_input, session_state],
             outputs=[answer_output]
         )
         
         # Also allow Enter key to submit
         question_input.submit(
-            fn=answer_question,
-            inputs=[question_input, gr.State(None)],
+            fn=handle_question,
+            inputs=[question_input, session_state],
             outputs=[answer_output]
         )
         
